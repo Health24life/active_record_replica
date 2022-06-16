@@ -23,7 +23,7 @@ module ActiveRecordReplica
       if ActiveRecord::Base.connection.respond_to?(:config)
         ActiveRecord::Base.connection.config[:replica]
       else
-        ActiveRecord::Base.configurations.configs_for(environment || Rails.env)['reader']
+        ActiveRecord::Base.configurations.configs_for(env_name: environment || Rails.env)['reader']
       end
     if replica_config
       ActiveRecord::Base.logger.info "ActiveRecordReplica.install! v#{ActiveRecordReplica::VERSION} Establishing connection to replica database"
