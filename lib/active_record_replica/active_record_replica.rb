@@ -21,9 +21,10 @@ module ActiveRecordReplica
   def self.install!(adapter_class = nil, environment = nil)
     replica_config =
       if ActiveRecord::Base.connection.respond_to?(:config)
-        ActiveRecord::Base.connection.config[:replica]
+        ActiveRecord::Base.connection.config[:reader]
       else
-        ActiveRecord::Base.configurations.configs_for(env_name: environment || Rails.env)['reader']
+        env_config = ActiveRecord::Base.configurations.configs_for(env_name: environment || Rails.env)&.first&.config
+        env_config ? env_config['reader'] : nil
       end
     if replica_config
       ActiveRecord::Base.logger.info "ActiveRecordReplica.install! v#{ActiveRecordReplica::VERSION} Establishing connection to replica database"
