@@ -9,7 +9,7 @@ module ActiveRecordReplica
           return super if active_record_replica_read_from_primary?
   
           ActiveRecordReplica.read_from_primary do
-            reader_connection.#{select_method}(sql, "Replica: \#{name || 'SQL'}", *args)
+            reader_connection.#{select_method}(sql, "Replica: \#{name || 'SQL'}", **args)
           end
         end
       RUBY
