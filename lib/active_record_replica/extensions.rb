@@ -3,13 +3,28 @@ module ActiveRecordReplica
   module Extensions
     extend ActiveSupport::Concern
 
-    ActiveRecordReplica::SELECT_METHODS.each do |select_method|
+    no_keyword_args = %i[select select_one select_rows select_value select_values]
+    keyword_args = %i[select_all]
+
+    no_keyword_args.each do |select_method|
       class_eval <<-RUBY, __FILE__, __LINE__ + 1
-        def #{select_method}(sql, name = nil, **args)
+        def #{select_method}(*args)
           return super if active_record_replica_read_from_primary?
   
           ActiveRecordReplica.read_from_primary do
-            reader_connection.#{select_method}(sql, "Replica: \#{name || 'SQL'}", **args)
+            reader_connection.#{select_method}(sql, "Replica: \#{name || 'SQL'}", *args)
+          end
+        end
+      RUBY
+    end
+
+    keyword_args.each do |select_method|
+      class_eval <<-RUBY, __FILE__, __LINE__ + 1
+        def #{select_method}(*args, **kwargs)
+          return super if active_record_replica_read_from_primary?
+  
+          ActiveRecordReplica.read_from_primary do
+            reader_connection.#{select_method}(sql, "Replica: \#{name || 'SQL'}", *args, **kwargs)
           end
         end
       RUBY
