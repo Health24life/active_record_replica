@@ -10,10 +10,7 @@ module ActiveRecordReplica
       class_eval <<-RUBY, __FILE__, __LINE__ + 1
         def #{select_method}(*args)
           return super if active_record_replica_read_from_primary?
-  
-          ActiveRecordReplica.read_from_primary do
-            reader_connection.#{select_method}(sql, "Replica: \#{name || 'SQL'}", *args)
-          end
+          active_record_replica_select(select_method, *args)
         end
       RUBY
     end
@@ -22,12 +19,21 @@ module ActiveRecordReplica
       class_eval <<-RUBY, __FILE__, __LINE__ + 1
         def #{select_method}(*args, **kwargs)
           return super if active_record_replica_read_from_primary?
-  
-          ActiveRecordReplica.read_from_primary do
-            reader_connection.#{select_method}(sql, "Replica: \#{name || 'SQL'}", *args, **kwargs)
-          end
+          active_record_replica_select_kargs(select_method, *args, **kargs)
         end
       RUBY
+    end
+
+    def active_record_replica_select(select_method, sql, name = nil, *args)
+      ActiveRecordReplica.read_from_primary do
+        reader_connection.public_send(select_method, sql, "Replica: \#{name || 'SQL'}", *args)
+      end
+    end
+
+    def active_record_replica_select_kargs(select_method, sql, name = nil, *args, **kargs)
+      ActiveRecordReplica.read_from_primary do
+        reader_connection.public_send(select_method, sql, "Replica: \#{name || 'SQL'}", *args, **kargs)
+      end
     end
 
     def reader_connection
