@@ -3,19 +3,7 @@ module ActiveRecordReplica
   module Extensions
     extend ActiveSupport::Concern
 
-    no_keyword_args = %i[select select_one select_rows select_value select_values]
-    keyword_args = %i[select_all]
-
-    no_keyword_args.each do |select_method|
-      class_eval <<-RUBY, __FILE__, __LINE__ + 1
-        def #{select_method}(*args)
-          return super if active_record_replica_read_from_primary?
-          active_record_replica_select(:#{select_method}, *args)
-        end
-      RUBY
-    end
-
-    keyword_args.each do |select_method|
+    %i[select select_one select_rows select_value select_values select_all].each do |select_method|
       class_eval <<-RUBY, __FILE__, __LINE__ + 1
         def #{select_method}(*args, **kwargs)
           return super if active_record_replica_read_from_primary?
@@ -24,20 +12,33 @@ module ActiveRecordReplica
       RUBY
     end
 
-    def active_record_replica_select(select_method, sql, name = nil, *args)
-      ActiveRecordReplica.read_from_primary do
-        reader_connection.public_send(select_method, sql, "Replica: \#{name || 'SQL'}", *args)
-      end
-    end
 
-    def active_record_replica_select_kargs(select_method, sql, name = nil, *args, **kwargs)
-      ActiveRecordReplica.read_from_primary do
-        reader_connection.public_send(select_method, sql, "Replica: \#{name || 'SQL'}", *args, **kwargs)
+    if ActiveRecord::VERSION::MAJOR >= 6
+      def active_record_replica_select_kargs(select_method, sql, name = nil, *args, **kargs)
+        ActiveRecordReplica.read_from_primary do
+          if ActiveRecord::Base.current_role == ActiveRecord::Base.reading_role
+            public_send(select_method, sql, "Replica: #{name || 'SQL'}", *args, **kargs)
+          else
+            ActiveRecord::Base.connected_to(role: ActiveRecord::Base.reading_role) do
+              reader_connection.public_send(select_method, sql, "Replica: #{name || 'SQL'}", *args, **kargs)
+            end
+          end
+        end
       end
-    end
 
-    def reader_connection
-      Replica.connection
+      def reader_connection
+        ActiveRecord::Base.connection
+      end
+    else
+      def active_record_replica_select_kargs(select_method, sql, name = nil, *args, **kwargs)
+        ActiveRecordReplica.read_from_primary do
+          reader_connection.public_send(select_method, sql, "Replica: \#{name || 'SQL'}", *args, **kwargs)
+        end
+      end
+
+      def reader_connection
+        Replica.connection
+      end
     end
 
     def begin_db_transaction
