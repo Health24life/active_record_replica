@@ -7,7 +7,8 @@ module ActiveRecordReplica
     keyword_args = %i[select_all]
 
     no_keyword_args.each do |select_method|
-      class_eval <<-RUBY, __FILE__, __LINE__ + 1
+      file, line = __FILE__, __LINE__
+      class_eval(<<-RUBY, file, line)
         def #{select_method}(*args)
           return super if active_record_replica_read_from_primary?
           active_record_replica_select(:#{select_method}, *args)
